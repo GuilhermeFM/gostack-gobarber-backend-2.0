@@ -1,41 +1,29 @@
-import { getRepository } from 'typeorm';
 import { hash } from 'bcryptjs';
+import { injectable, inject } from 'tsyringe';
 
 import AppError from '@shared/errors/AppError';
+
 import User from '@modules/users/infra/typeorm/entities/Users';
+import ICreateUserDTO from '@modules/users/dtos/ICreateUserDTO';
+import IUsersRepository from '../repositories/IUserRepository';
 
-interface ExecuteParams {
-  name: string;
-  email: string;
-  password: string;
-}
+@injectable()
+export default class CreateUserService {
+  constructor(
+    @inject('UsersRepository')
+    private usersRepository: IUsersRepository,
+  ) {}
 
-class CreateUserService {
-  public async execute({
-    name,
-    email,
-    password,
-  }: ExecuteParams): Promise<User> {
-    const usersRepository = getRepository(User);
-
-    const checkUserExists = await usersRepository.findOne({ where: { email } });
+  public async execute({ name, email, password }: ICreateUserDTO): Promise<User> {
+    const checkUserExists = await this.usersRepository.findByEmail(email);
 
     if (checkUserExists) {
       throw new AppError('Email address already exists.', 400);
     }
 
     const hashedPassword = await hash(password, 8);
-
-    const user = usersRepository.create({
-      name,
-      email,
-      password: hashedPassword,
-    });
-
-    await usersRepository.save(user);
+    const user = await this.usersRepository.create({ name, email, password: hashedPassword });
 
     return user;
   }
 }
-
-export default CreateUserService;

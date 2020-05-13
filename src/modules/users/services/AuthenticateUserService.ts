@@ -1,29 +1,28 @@
-import { getRepository } from 'typeorm';
 import { compare } from 'bcryptjs';
 import { sign } from 'jsonwebtoken';
+import { injectable, inject } from 'tsyringe';
 
 import config from '@config/auth';
 import AppError from '@shared/errors/AppError';
-import User from '@modules/users/infra/typeorm/entities/Users';
 
-interface ExecuteParams {
-  email: string;
-  password: string;
-}
+import User from '@modules/users/infra/typeorm/entities/Users';
+import IUsersRepository from '../repositories/IUserRepository';
+import IAuthenticateUserDTO from '../dtos/IAuthenticateUserDTO';
 
 interface ExecuteReturn {
   user: User;
   token: string;
 }
 
-class AuthenticateUserService {
-  public async execute({
-    email,
-    password,
-  }: ExecuteParams): Promise<ExecuteReturn> {
-    const usersRepository = getRepository(User);
+@injectable()
+export default class AuthenticateUserService {
+  constructor(
+    @inject('UsersRepository')
+    private usersRepository: IUsersRepository,
+  ) {}
 
-    const user = await usersRepository.findOne({ where: { email } });
+  public async execute({ email, password }: IAuthenticateUserDTO): Promise<ExecuteReturn> {
+    const user = await this.usersRepository.findByEmail(email);
 
     if (!user) {
       throw new AppError('Incorrect email or password', 400);
@@ -43,5 +42,3 @@ class AuthenticateUserService {
     return { user, token };
   }
 }
-
-export default AuthenticateUserService;
